@@ -961,19 +961,18 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     let pillarContext = '';
 
     if (extraLinks.length > 0) {
-        const links = extraLinks.map((l, idx) => `[Spoke ${idx + 1}] Title: ${l.title}, URL: ${l.url}`).join('\n');
         const isKo = lang === 'ko';
-        const btnText = isKo ? "자세히 보기 →" : "Read More →";
+        const btnText = isKo ? "▶ 관련 가이드 자세히 보기" : "▶ Read More Guide";
+        const links = extraLinks.map((l, idx) => `[서브글 ${idx + 1}] 제목: ${l.title}\n[복사해서 본문에 넣을 HTML 코드]:\n<div style='margin: 40px 0;'><p style='font-size:16px; font-weight:700; color:#334155;'>🎯 Related Deep Dive:</p><a href='${l.url}' class='cluster-btn'>${l.title} ${btnText}</a></div>`).join('\n\n');
+
         const contextPrompt = isKo
             ? `[INTERNAL_LINK_PUNITIVE_MISSION]: 이 포스팅은 메인 허브(Pillar) 글입니다. 
-            ★ 절대 규칙: 아래 제공된 ${extraLinks.length}개의 서브 글 요약 섹션 뒤에는 **반드시 각각 하나씩** 아래 버튼 코드를 삽입하세요.
-            코드 예시: <a href='서브글URL' class='cluster-btn'>${btnText}</a>
-            누락 시 SEO 전략이 완전히 실패하므로, 정확히 ${extraLinks.length}개의 버튼이 본문 곳곳에 박혀 있어야 합니다.`
+            ★ 절대 규칙: 아래 제공된 ${extraLinks.length}개의 <서브글> 리스트를 기반으로, 본문 중간중간 관련된 내용이 나올 때 해당 서브글로 이동하는 버튼을 **반드시 각각 하나씩** 삽입하세요.
+            ⚠️ 엉뚱한 링크를 만들지 마세요! 아래 리스트에 있는 **[복사해서 본문에 넣을 HTML 코드]**를 1글자도 바꾸지 말고 그대로 복사해서 배치만 하세요.`
             : `[INTERNAL_LINK_PUNITIVE_MISSION]: This is a Pillar post. 
-            ★ STRICT RULE: After EACH of the following ${extraLinks.length} summary sections, you MUST insert the following button code:
-            Example: <a href='SpokeURL' class='cluster-btn'>${btnText}</a>
-            Total ${extraLinks.length} buttons are REQUIRED. Failure to include these links will result in a penalty.`;
-        pillarContext = `\n${contextPrompt}\n${links}`;
+            ★ STRICT RULE: You must insert exactly ${extraLinks.length} buttons in the article body linking to the provided sub-articles.
+            ⚠️ DO NOT generate your own links! Simply COPY AND PASTE the exact **[복사해서 본문에 넣을 HTML 코드]** provided below into appropriate related sections of your content.`;
+        pillarContext = `\n${contextPrompt}\n\n[서브글 목록 및 주입용 코드]\n${links}`;
     }
 
     const personaTag = persona ? `\n[SPECIFIC_PERSONA]: ${persona}` : '';
@@ -1162,8 +1161,8 @@ ${langTag}`;
         linkListHtml += `<h3 style='margin-top:0; color:#6366f1;'>${sectionTitle}</h3><ul style='list-style:none; padding:0; margin:0;'>`;
 
         extraLinks.forEach(link => {
-            linkListHtml += `<li style='margin:15px 0; padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.05);'>
-                <a href='${link.url}' style='text-decoration:none; font-weight:bold; color:#fff; display:block; transition:all 0.3s;'>
+            linkListHtml += `<li style='margin:15px 0; padding-bottom:10px; border-bottom:1px solid rgba(0,0,0,0.05);'>
+                <a href='${link.url}' style='text-decoration:none; font-weight:bold; color:#1e40af; display:block; transition:all 0.3s;'>
                     • ${link.title} <span style='color:#6366f1; font-size:0.8em; margin-left:10px;'>기사 보기 →</span>
                 </a>
             </li>`;
