@@ -7,7 +7,7 @@
   "random_delay": false,
   "pillar_topic": "자동생성",
   "target_categories": [
-    "ALL"
+    "1"
   ],
   "clusters": []
 }
