@@ -985,6 +985,11 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         ? "<h1>(10년차 SEO 전문가의 구글 상단 노출을 위한 롱테일 키워드 제목)</h1>"
         : "<h1>(SEO Optimized Long-tail Keyword Title for Google Ranking)</h1>";
 
+    const metaTitles = lang === 'ko'
+
+        ? { thumb: "썸네일용 매력적인 짧은 한글 제목", pin: "핀터레스트용 세로형 매력적인 한글 제목" }
+        : { thumb: "Short, eye-catching English title for thumbnail", pin: "Viral English title for Pinterest vertical pin" };
+
     // MISSION 분량 확보를 위한 강력한 지침 추가
     const m1Prompt = MASTER_GUIDELINE + `
 [MISSION: FULL POST GENERATION] 
@@ -1007,13 +1012,14 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 
 [META_DATA_START]
 {
-  "IMG_0": { "mainTitle": "썸네일용 매력적인 짧은 제목", "bgPrompt": "썸네일 배경 이미지 묘사 영문 프롬프트" },
+  "IMG_0": { "mainTitle": "${metaTitles.thumb}", "bgPrompt": "썸네일 배경 이미지 묘사 영문 프롬프트" },
   "IMG_1": { "prompt": "본문 첫번째 이미지 묘사 영문 프롬프트" },
   "IMG_2": { "prompt": "본문 두번째 이미지 묘사 영문 프롬프트" },
   "IMG_3": { "prompt": "본문 세번째 이미지 묘사 영문 프롬프트" },
-  "IMG_PINTEREST": { "prompt": "Pinterest 전용 세로형(2:3) 고퀄리티 이미지 묘사 영문 프롬프트" }
+  "IMG_PINTEREST": { "mainTitle": "${metaTitles.pin}", "prompt": "Pinterest 전용 세로형(2:3) 고퀄리티 이미지 묘사 영문 프롬프트" }
 }
 [META_DATA_END]
+
 
 [CONTENT_START]
 ${h1Instruction}
@@ -1098,6 +1104,10 @@ ${langTag}`;
     finalHtml = finalHtml.replace(/\{\s*"IMG_\d+"[\s\S]*?\}/g, '');
     finalHtml = finalHtml.replace(/```json[\s\S]*?```/gi, '');
     finalHtml = finalHtml.replace(/^\s*text\s*$/gm, '');
+
+    // [MARKDOWN_TO_HTML] 마크다운 **강조** 문법을 HTML 태그로 변환시켜 깨짐 현상 방지
+    finalHtml = finalHtml.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
     finalHtml = finalHtml.trim();
 
     let finalTitle = target;
@@ -1134,7 +1144,9 @@ ${langTag}`;
     let urlPin = '';
     try {
         const pinMeta = imgMetas['P'] || { mainTitle: target, bgPrompt: target + " premium vertical pinterest style infographic 2026" };
+        if (!pinMeta.mainTitle) pinMeta.mainTitle = target; // [TITLE_STABILITY] 영문 prompt가 제목으로 쓰이는 것 방지
         urlPin = await genThumbnail(pinMeta, model, '2:3');
+
         const pinHtml = `<div style='display:none;'><img src='${urlPin}' alt='Pinterest Optimized - ${target}'></div>\n`;
         // 무조건 최상단에 히든으로 삽입 (기존 치환자는 제거)
         finalHtml = pinHtml + finalHtml.replace(/\[\[IMG_PINTEREST\]\]/gi, '');
