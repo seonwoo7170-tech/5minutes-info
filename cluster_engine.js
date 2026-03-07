@@ -3,7 +3,16 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const fs = require('fs');
 const axios = require('axios');
 const FormData = require('form-data');
-const { createCanvas, loadImage } = require('canvas');
+const { createCanvas, loadImage, registerFont } = require('canvas');
+const path = require('path');
+
+// [FONT_FIX] Windows 환경 한글 폰트 등록
+const fontPath = path.join(process.env.WINDIR || 'C:\\Windows', 'Fonts', 'malgun.ttf');
+if (fs.existsSync(fontPath)) {
+    registerFont(fontPath, { family: 'Malgun Gothic' });
+    console.log('✅ 한글 전용 폰트(Malgun Gothic) 등록 완료');
+}
+
 
 // --- [LOCAL_SETUP] Load secrets from secrets_config.json ---
 if (fs.existsSync('secrets_config.json')) {
@@ -856,8 +865,9 @@ async function genThumbnail(meta, model, ratio = '16:9') {
 
         const mainTitle = (meta.mainTitle || meta.prompt || '').trim();
         const words = mainTitle.split(' ');
+        const kFont = 'bold ' + (isPin ? 65 : 60) + 'px "Malgun Gothic"';
+        ctx.font = kFont;
         let fontSize = isPin ? 65 : 60;
-        ctx.font = `bold ${fontSize}px "Malgun Gothic", "Apple SD Gothic Neo", "NanumGothic", "Pretendard", sans-serif`;
 
         let line = '';
         let lines = [];
@@ -877,7 +887,7 @@ async function genThumbnail(meta, model, ratio = '16:9') {
         // 텍스트가 너무 많으면 폰트 크기 자동 축소
         if (lines.length > 4) {
             fontSize = Math.floor(fontSize * 0.82);
-            ctx.font = `bold ${fontSize}px "Malgun Gothic", "Apple SD Gothic Neo", "NanumGothic", "Pretendard", sans-serif`;
+            ctx.font = `bold ${fontSize}px "Malgun Gothic"`;
         }
 
         let y = isPin ? (h / 2) - (lines.length * (fontSize + 15) / 2) + 20 : (h * 0.5) - (lines.length * (fontSize + 15) / 2) + 15;
@@ -1070,18 +1080,38 @@ ${langTag}`;
     }
 
     // === [IMG_PINTEREST] 처리 (2:3 수직 이미지 - 최상단 히든 썸네일) ===
-    const pinReg = /\s*\[\[IMG_PINTEREST\]\]\s*/gi;
-    const pinMeta = imgMetas['P'] || { mainTitle: target, bgPrompt: target + " vertical pinterest style" };
-    const urlPin = await genThumbnail(pinMeta, model, '2:3');
-    const pinHtml = `<div style='display:none;'><img src='${urlPin}' alt='Pinterest Optimized - ${target}'></div>`;
+    let urlPin = '';
+    try {
+        const pinMeta = imgMetas['P'] || { mainTitle: target, bgPrompt: target + " premium vertical pinterest style infographic 2026" };
+        urlPin = await genThumbnail(pinMeta, model, '2:3');
+        const pinHtml = `<div style='display:none;'><img src='${urlPin}' alt='Pinterest Optimized - ${target}'></div>\n`;
+        // 무조건 최상단에 히든으로 삽입 (기존 치환자는 제거)
+        finalHtml = pinHtml + finalHtml.replace(/\[\[IMG_PINTEREST\]\]/gi, '');
+    } catch (pinErr) {
+        report('⚠️ 핀터레스트 썸네일 생성 실패: ' + pinErr.message, 'warning');
+    }
 
-    // 무조건 최상단에 히든으로 삽입 (기존 치환자는 제거)
-    finalHtml = pinHtml + finalHtml.replace(pinReg, '');
+    // === [LINK_STABILITY] 메인글 하단에 서브글 링크 목록 자동 생성 (안전장치) ===
+    if (extraLinks.length > 0) {
+        const isKo = lang === 'ko';
+        const sectionTitle = isKo ? "🔗 함께 읽으면 좋은 관련 가이드" : "🔗 Recommended Related Guides";
+        let linkListHtml = `\n<div class='related-posts-box' style='margin-top:50px; padding:30px; background:rgba(99,102,241,0.05); border-left:5px solid #6366f1; border-radius:15px;'>`;
+        linkListHtml += `<h3 style='margin-top:0; color:#6366f1;'>${sectionTitle}</h3><ul style='list-style:none; padding:0; margin:0;'>`;
 
-    finalHtml = finalHtml.replace(/\[\[IMG_\d+\]\]/gi, '').trim();
+        extraLinks.forEach(link => {
+            linkListHtml += `<li style='margin:15px 0; padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.05);'>
+                <a href='${link.url}' style='text-decoration:none; font-weight:bold; color:#fff; display:block; transition:all 0.3s;'>
+                    • ${link.title} <span style='color:#6366f1; font-size:0.8em; margin-left:10px;'>기사 보기 →</span>
+                </a>
+            </li>`;
+        });
+        linkListHtml += `</ul></div>\n`;
+
+        // 본문 마지막에 관련 글 섹션 강제 결합
+        finalHtml += linkListHtml;
+    }
 
     // [CRITICAL FIX]: Remove redundant hardcoded disclaimer here because AI will generate it based on Master Guideline.
-    // This prevents double disclaimer issue.
     const res = await blogger.posts.insert({ blogId: bId, requestBody: { title: finalTitle, content: STYLE + finalHtml + '</div>', published: pTime.toISOString() } });
     report(`🖋️ [포스팅 성공]: "${finalTitle}"`, 'success');
     report(`🔗 [URL]: ${res.data.url}`);
