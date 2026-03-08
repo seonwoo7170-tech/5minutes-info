@@ -1,13 +1,13 @@
 {
   "blog_id": "7741529904469657049",
-  "blog_lang": "ko",
+  "blog_lang": "en",
   "post_mode": "single",
   "daily_count": 1,
   "schedule_time": "09:00",
   "random_delay": false,
   "pillar_topic": "자동생성",
   "target_categories": [
-    "ALL"
+    "1"
   ],
   "clusters": []
 }
